@@ -22,8 +22,10 @@ set(MDR_CORE_SOURCES
     Property.hpp
 )
 
-include(FetchContent)
-FetchContent_MakeAvailable(fmt)
+if (NOT TARGET fmt::fmt)
+    include(FetchContent)
+    FetchContent_MakeAvailable(fmt)
+endif ()
 
 set(GENERATED_SRCS
     "${_GEN_SRC}/ProtocolV1T1Serialization.cpp"

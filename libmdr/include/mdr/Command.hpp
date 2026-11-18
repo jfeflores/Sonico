@@ -13,6 +13,9 @@ namespace mdr
     // Upstream mentioned chunking w/ sizes above 2048
     // https://github.com/Plutoberth/SonyHeadphonesClient/blob/5620e8ed5deccb957338b54e371b215146080819/Client/CommandSerializer.cpp#L128
     constexpr size_t kMDRMaxPacketSize = 2048;
+    // Header (6) + checksum (1), worst-case byte escaping, and two markers.
+    constexpr size_t kMDRMaxWireFrameSize = 2u * (kMDRMaxPacketSize + 7u) + 2u;
+    constexpr size_t kMDRMaxReceiveBacklog = 32u * kMDRMaxWireFrameSize;
     using MDRCommandSeqNumber = UInt8;
     using MDRBuffer = Vector<UInt8>;
     /**

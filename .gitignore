@@ -550,6 +550,7 @@ tooling/ida/input/
 *.til
 
 build-*/
+/.build/
 
 /client/Platform/OpenHarmony/.hvigor/
 /client/Platform/OpenHarmony/.appanalyzer/

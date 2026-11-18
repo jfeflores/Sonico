@@ -33,7 +33,12 @@ add_library(mdr_Includes INTERFACE
     mdr/Generated/ProtocolV2T2Enum.hpp
     mdr/Generated/ProtocolV2T2Traits.hpp
 )
-target_link_libraries(mdr_Includes INTERFACE mdr-c fmt::fmt)
+if (MDR_USE_SYSTEM_FMT)
+    # Keep the app self-contained instead of linking a developer's Homebrew dylib.
+    target_link_libraries(mdr_Includes INTERFACE mdr-c fmt::fmt-header-only)
+else ()
+    target_link_libraries(mdr_Includes INTERFACE mdr-c fmt::fmt)
+endif ()
 target_include_directories(
         mdr_Includes
         INTERFACE

@@ -134,6 +134,10 @@ namespace mdr
         const int r = mdrConnectionRecv(mConn, buf, kMDRMaxPacketSize, &recvd);
         if (r != MDR_RESULT_OK)
             return r;
+        if (recvd < 0 || recvd > static_cast<int>(sizeof(buf)))
+            return MDR_RESULT_ERROR_MALFORMED_PAYLOAD;
+        if (static_cast<size_t>(recvd) > kMDRMaxReceiveBacklog - mRecvBuf.size())
+            return MDR_RESULT_ERROR_MALFORMED_PAYLOAD;
 #ifdef MDR_DEBUG
         mdr::String dump = "<< ";
         for (char* p = buf; p != buf + recvd; p++)
@@ -243,9 +247,22 @@ namespace mdr
         if (mRecvBuf.empty())
             return idleCode;
         auto commandBegin = std::find(mRecvBuf.begin(), mRecvBuf.end(), kStartMarker);
+        if (commandBegin == mRecvBuf.end())
+        {
+            mRecvBuf.clear(); // Junk before a frame cannot become useful later.
+            return idleCode;
+        }
+        mRecvBuf.erase(mRecvBuf.begin(), commandBegin);
+        commandBegin = mRecvBuf.begin();
         auto commandEnd = std::find(commandBegin, mRecvBuf.end(), kEndMarker);
-        if (commandBegin == mRecvBuf.end() || commandEnd == mRecvBuf.end())
-            return idleCode; // Incomplete
+        if (commandEnd == mRecvBuf.end())
+        {
+            if (mRecvBuf.size() > kMDRMaxWireFrameSize)
+                return SetLastError(MDR_RESULT_ERROR_MALFORMED_PAYLOAD, "MDR frame exceeds the wire-size limit");
+            return idleCode; // Bounded incomplete frame.
+        }
+        if (static_cast<size_t>(std::distance(commandBegin, commandEnd)) + 1u > kMDRMaxWireFrameSize)
+            return SetLastError(MDR_RESULT_ERROR_MALFORMED_PAYLOAD, "MDR frame exceeds the wire-size limit");
         MDRBuffer packedCommand{commandBegin, commandEnd + 1};
         MDRBuffer command;
         MDRDataType type;

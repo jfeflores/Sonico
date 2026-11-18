@@ -1,0 +1,4 @@
+module XMConnectBridge {
+    header "XMConnectBridge.h"
+    export *
+}

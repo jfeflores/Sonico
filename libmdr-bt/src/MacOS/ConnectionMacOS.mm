@@ -17,7 +17,8 @@ struct MDRMacState
     uint64_t generation{};
     MDRResult result{MDR_RESULT_ERROR_NO_CONNECTION};
     mdr::String error;
-    mdr::Vector<uint8_t> buffer;
+    // A deque avoids shifting the full backlog on every small read.
+    mdr::Deque<uint8_t> buffer;
     size_t mtu{1};
     bool writePending{};
     bool enumPending{};
@@ -182,6 +183,15 @@ struct MDRMacState
     std::scoped_lock lock(_state->mutex);
     if (_state->generation != _generation || _state->result != MDR_RESULT_OK)
         return;
+    constexpr size_t kMaximumReceiveBacklog = 256u * 1024u;
+    if (dataLength > kMaximumReceiveBacklog - _state->buffer.size())
+    {
+        _state->buffer.clear();
+        _state->result = MDR_RESULT_ERROR_MALFORMED_PAYLOAD;
+        _state->error = "Bluetooth receive backlog exceeded the safety limit";
+        _state->condition.notify_all();
+        return;
+    }
     _state->buffer.insert(_state->buffer.end(), bytes, bytes + dataLength);
     _state->condition.notify_all();
 }
@@ -288,7 +298,7 @@ struct MDRConnectionMacOS
         if (buffer.empty())
             return MDR_RESULT_INPROGRESS;
         const size_t count = std::min(static_cast<size_t>(size), buffer.size());
-        std::memcpy(dst, buffer.data(), count);
+        std::copy_n(buffer.begin(), count, dst);
         buffer.erase(buffer.begin(), buffer.begin() + count);
         *pReceived = static_cast<int>(count);
         return MDR_RESULT_OK;

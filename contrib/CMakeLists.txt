@@ -11,12 +11,16 @@ if (MDR_MSVC_CLIENT_YY_THUNKS)
     )
 endif ()
 
-FetchContent_Declare(
-        fmt
-        GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-        GIT_TAG 12.1.0
-        GIT_SHALLOW TRUE
-)
+if (MDR_USE_SYSTEM_FMT)
+    find_package(fmt 12 CONFIG REQUIRED GLOBAL)
+else ()
+    FetchContent_Declare(
+            fmt
+            GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+            GIT_TAG 12.1.0
+            GIT_SHALLOW TRUE
+    )
+endif ()
 
 if (MDR_PLATFORM_OS STREQUAL "OHOS")
     FetchContent_Declare(

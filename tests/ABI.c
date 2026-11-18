@@ -5124,6 +5124,45 @@ static void test_fatal_failure(MDRProtocolVersion family, int source)
     session_close(&session);
 }
 
+static void test_receive_framing_limits(void)
+{
+    Session session;
+    unsigned char junk[2048];
+    unsigned char frame[FRAME_BUFFER_CAPACITY];
+    MDREvent event = MDR_EVENT_NONE;
+    size_t iteration;
+    size_t size;
+    if (!session_open(&session))
+        return;
+    memset(junk, 0x41, sizeof(junk));
+    for (iteration = 0; iteration < 128; ++iteration)
+    {
+        mock_load(&session.transport, junk, sizeof(junk));
+        check_result(mdrHeadphonesPoll(session.headphones, &event), MDR_RESULT_OK,
+                     "marker-free junk is discarded without poisoning the session");
+    }
+    size = pack_data_frame(k_v2_protocol_info, sizeof(k_v2_protocol_info), 0, frame);
+    mock_load(&session.transport, frame, size);
+    check_result(mdrHeadphonesPoll(session.headphones, &event), MDR_RESULT_OK,
+                 "a valid frame after discarded junk is accepted");
+    check(event != MDR_EVENT_NONE, "valid frame after junk produces an event");
+    session_close(&session);
+
+    if (!session_open(&session))
+        return;
+    junk[0] = 0x3e; /* Start marker followed by an unterminated stream. */
+    mock_load(&session.transport, junk, sizeof(junk));
+    check_result(mdrHeadphonesPoll(session.headphones, &event), MDR_RESULT_OK, "first fragment is incomplete");
+    junk[0] = 0x41;
+    mock_load(&session.transport, junk, sizeof(junk));
+    check_result(mdrHeadphonesPoll(session.headphones, &event), MDR_RESULT_OK, "bounded second fragment is incomplete");
+    mock_load(&session.transport, junk, sizeof(junk));
+    check_result(mdrHeadphonesPoll(session.headphones, &event), MDR_RESULT_ERROR_MALFORMED_PAYLOAD,
+                 "oversized unterminated frame fails rather than growing forever");
+    check(!mdrHeadphonesIsReady(session.headphones), "oversized stream requires a fresh session");
+    session_close(&session);
+}
+
 int main(void)
 {
     int failure_source;
@@ -5181,6 +5220,7 @@ int main(void)
     test_v1_voice_guidance_detail_is_not_the_switch();
     test_v1_reply_before_ack();
     test_packet_counter();
+    test_receive_framing_limits();
     test_debug_command_arguments();
     test_debug_command(MDR_PROTOCOL_V1);
     test_debug_command(MDR_PROTOCOL_V2);
