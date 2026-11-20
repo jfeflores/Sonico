@@ -34,7 +34,7 @@ To connect, exit demo mode, pair your headphones in macOS Bluetooth Settings, th
 
 ## Compatibility
 
-**WH-1000XM6** is the primary target. Sonico also recognizes **WH-1000XM3, XM4, and XM5**. Controls depend on the model and firmware, and live hardware validation is still in progress. See [what’s been tested](docs/macos-validation.md), the [native build and usage notes](macos/README.md), and the [design notes](DESIGN.md). Maintainers can follow the [installer and release checklist](docs/macos-release.md).
+**WH-1000XM6** is the primary target. The project owner confirmed recognition and controls on their XM6. Sonico also recognizes **WH-1000XM3, XM4, and XM5**; available controls depend on the model and firmware. See [what’s been tested](docs/macos-validation.md), the [native build and usage notes](macos/README.md), and the [design notes](DESIGN.md). Maintainers can follow the [installer and release checklist](docs/macos-release.md).
 
 ## Credits
 

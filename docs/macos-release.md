@@ -30,7 +30,7 @@ The signed path uses hardened runtime for the app, signs the product package, wa
 
 ## Release checklist
 
-1. Verify live WH-1000XM6 identity, playback updates, and EQ readback (without changing existing profiles), and record the firmware. Do not claim features or hardware tests that have not been verified.
+1. Review the [owner-confirmed WH-1000XM6 check](macos-validation.md#owner-confirmed-hardware-check). Report only the confirmed recognition and control behavior; do not infer firmware-wide support or full feature coverage.
 2. Verify the downloaded, quarantined installer on a clean Mac. Confirm it installs to `/Applications`, launches, works in demo mode, and requests Bluetooth permission only when connecting. Test on the minimum macOS version and on a physical Intel Mac if claiming Intel validation.
 3. Attach the signed `.pkg`, the matching `-source.tar.gz`, and `SHA256SUMS.txt` to a GitHub release whose tag points at the revision recorded in `BUILD-INFO.txt`. Remove unsigned review assets before publishing. Test the download and install instructions at the release URL.
 

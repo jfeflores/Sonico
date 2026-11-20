@@ -69,7 +69,7 @@ Rounded groups contain related controls. Pills denote an action or selected opti
 - **Noise mode:** text labels alongside icons and a finish-tinted selection surface. The highlight settles with a short spring and only moves when the reported mode changes.
 - **Equalizer:** the selected preset and response share a card. Edit Bands toggles between the summary and native frequency sliders for custom presets. The graph represents reported settings, not acoustic gain.
 - **Motion:** short, local fades for expansion and page changes; no idle loops. MetalKit requests portrait frames during the one-shot reveal or when orbit or viewport changes. Reduce Motion removes the entrance, selection travel, and fades while keeping direct manipulation.
-- **App icon:** original interlocking signal ribbons with native light/dark/tinted/clear renditions on supporting systems, plus an `.icns` fallback.
+- **App icon:** a flat headphone driver with a vented surround and central dust cap, filled with a violet-to-blue-to-teal gradient on white. macOS handles the outer shape and optional tinted and clear appearances; older systems use the matching `.icns` fallback.
 - **Menu bar:** compact version of the same session, without the 3D portrait.
 
 ## Do's and Don'ts

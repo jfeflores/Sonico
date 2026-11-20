@@ -2,6 +2,10 @@
 
 This complements the earlier [architecture review](MACOS-REVIEW.md). It is not device certification or a full security audit.
 
+## Owner-confirmed hardware check
+
+The project owner tested a physical WH-1000XM6 and confirmed Sonico recognizes it and that the controls work. A repeat hardware session is not required for this release. The exact firmware and a per-control test matrix were not reported, so this does not establish full feature coverage across hardware or firmware versions.
+
 ## Sonico polish pass
 
 - Build: `bash macos/build.sh`; demo: `open build-native/macos/Sonico.app --args --demo`. Seven CTest suites passed, including 54 model assertions. Strict ad-hoc signature verification passed. Adaptive icon and static fallback builds both passed; Icon Composer light/dark, tinted/clear and 16/32 pt previews were inspected. The adaptive catalog is built with Xcode 26+ and supported by newer macOS; the `.icns` fallback covers macOS 15.
@@ -37,4 +41,4 @@ swiftc -O -target arm64-apple-macosx15.0 -parse-as-library \
 
 - The window and menu bar bind to one main-actor model. The serial service owns the C handles and drops stale deliveries by service identity. It no longer publishes timestamp-only changes. The live 25 ms protocol polling interval remains unchanged until timing can be verified on hardware.
 - Input batching retains the quiet period and maximum delay; continuous UI edits should not be treated as acknowledged until the device replies. Capabilities and ranges gate settings, including legacy Clear Bass. The native build omits automatic packet recording.
-- Next: explicitly connect the WH-1000XM6, record its firmware and finish, and verify sound modes, EQ, playback, phone-driven changes, disconnect/reconnect, and menu-only operation. Also verify on the macOS 15 deployment floor; the local runtime was macOS 27.3 on Apple silicon. Developer ID signing and notarization are separate release work.
+- Next: verify installation of the Developer ID-signed, notarized installer on a clean Mac. The local runtime was macOS 27.3 on Apple silicon; macOS 15 and physical Intel runtime behavior were not independently verified.

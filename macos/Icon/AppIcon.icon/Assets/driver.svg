@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="driver" gradientUnits="userSpaceOnUse" x1="245" y1="242" x2="779" y2="782">
+      <stop offset="0" stop-color="#6942E6"/>
+      <stop offset="0.52" stop-color="#3359DF"/>
+      <stop offset="1" stop-color="#087F94"/>
+    </linearGradient>
+  </defs>
+  <!-- Three slots in the driver surround and a solid central dust cap. -->
+  <g fill="url(#driver)">
+    <path d="M800.21 646.39A318 318 0 0 1 287.14 736.86L351.49 672.51A227 227 0 0 0 717.73 607.93Z"/>
+    <path d="M251.51 694.40A318 318 0 0 1 429.70 204.84L453.25 292.73A227 227 0 0 0 326.05 642.20Z"/>
+    <path d="M484.28 195.21A318 318 0 0 1 819.16 594.30L731.27 570.75A227 227 0 0 0 492.22 285.86Z"/>
+    <circle cx="512" cy="512" r="146"/>
+  </g>
+</svg>

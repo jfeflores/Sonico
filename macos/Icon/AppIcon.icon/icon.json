@@ -1,16 +1,15 @@
 {
   "fill-specializations": [
-    {"value": {"automatic-gradient": "srgb:0.292,0.286,0.482,1.0"}},
-    {"appearance": "dark", "value": {"automatic-gradient": "srgb:0.109,0.102,0.193,1.0"}}
+    {"value": {"solid": "srgb:1.000,1.000,1.000,1.000"}},
+    {"appearance": "dark", "value": {"solid": "srgb:1.000,1.000,1.000,1.000"}}
   ],
   "groups": [
     {
       "layers": [
-        {"glass": true, "image-name": "signal.svg", "name": "Signal"},
-        {"glass": true, "image-name": "echo.svg", "name": "Echo"}
+        {"glass": false, "image-name": "driver.svg", "name": "Headphone driver"}
       ],
-      "shadow": {"kind": "neutral", "opacity": 0.38},
-      "translucency": {"enabled": true, "value": 0.22}
+      "shadow": {"kind": "none", "opacity": 0},
+      "translucency": {"enabled": false, "value": 0}
     }
   ],
   "supported-platforms": {"squares": ["macOS"]}
