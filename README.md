@@ -46,7 +46,7 @@ For a live session, launch without `--demo`. Pair the headphones in macOS Blueto
 
 ## Credits
 
-- **Jesus Flores ([@jfeflores](https://github.com/jfeflores)) and Sonico contributors** created the separate SwiftUI/AppKit app, menu-bar controls, device-aware interface, EQ workflow, and customizable shortcuts. Sonico also adds the original RealityKit portraits and icon, a native build, and targeted fixes and tests for the shared libraries.
+- **J ([@jfeflores](https://github.com/jfeflores))** created the separate SwiftUI/AppKit app, menu-bar controls, device-aware interface, EQ workflow, and customizable shortcuts. Sonico also adds the original RealityKit portraits and icon, a native build, and targeted fixes and tests for the shared libraries.
 - **[mos9527](https://github.com/mos9527), [Amr Satrio](https://github.com/Amrsatrio), and the [SonyHeadphonesClient contributors](https://github.com/mos9527/SonyHeadphonesClient)** built and maintained the inherited protocol libraries, Bluetooth backends, cross-platform reference client, and test infrastructure. Sonico uses and extends that work; it did not originate those components.
 - **[Plutoberth and contributors](https://github.com/Plutoberth/SonyHeadphonesClient)** created the earlier project in this lineage. Their original notice is preserved alongside the direct upstream notice.
 
