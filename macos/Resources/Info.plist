@@ -1,15 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-    <key>CFBundleExecutable</key><string>ProjectXMConnect</string>
+    <key>CFBundleExecutable</key><string>Sonico</string>
     <key>CFBundleIdentifier</key><string>app.xmconnect.project</string>
-    <key>CFBundleName</key><string>Project XMConnect</string>
-    <key>CFBundleDisplayName</key><string>Project XMConnect</string>
+    <key>CFBundleName</key><string>Sonico</string>
+    <key>CFBundleDisplayName</key><string>Sonico</string>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
+    <key>CFBundleIconName</key><string>AppIcon</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>0.1.0</string>
     <key>CFBundleVersion</key><string>1</string>
     <key>LSMinimumSystemVersion</key><string>15.0</string>
     <key>NSHighResolutionCapable</key><true/>
     <key>NSBluetoothAlwaysUsageDescription</key><string>Find and control your paired WH-1000X headphones when you choose to connect.</string>
-    <key>NSHumanReadableCopyright</key><string>Independent project. Includes MIT-licensed code by mos9527, Amr Satrio and contributors. Not affiliated with Sony.</string>
+    <key>NSHumanReadableCopyright</key><string>Copyright © 2026 Jesus Flores and Sonico contributors. See Licenses &amp; Source for terms and upstream notices. Not affiliated with Sony.</string>
 </dict></plist>

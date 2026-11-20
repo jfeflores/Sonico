@@ -32,7 +32,7 @@ struct PortraitRenderer: NSViewRepresentable {
     }
 
     func updateNSView(_ view: MTKView, context: Context) {
-        context.coordinator.update(orbit: orbit, reduceMotion: reduceMotion, view: view)
+        context.coordinator.update(model: model, finish: finish, orbit: orbit, reduceMotion: reduceMotion, view: view)
     }
 
     static func dismantleNSView(_ view: MTKView, coordinator: Coordinator) {
@@ -40,9 +40,10 @@ struct PortraitRenderer: NSViewRepresentable {
     }
 
     @MainActor final class Coordinator: NSObject, MTKViewDelegate {
-        private static let duration = 0.58
+        private static let duration = 0.64
         private var renderer: RealityRenderer?
         private var headset: Entity?
+        private var finish = HeadphoneFinish.unreported
         private var orbit = PortraitOrbit()
         private var yaw: Float = 0
         private var pitch: Float = 0
@@ -56,28 +57,29 @@ struct PortraitRenderer: NSViewRepresentable {
 
         func configure(view: MTKView, model: HeadphoneModelID, finish: HeadphoneFinish?, orbit: PortraitOrbit,
                        animate: Bool, onFirstFrame: @escaping () -> Void, onReady: @escaping () -> Void) {
-            guard view.device != nil, let renderer = try? RealityRenderer() else { return }
+            guard view.device != nil, let renderer = try? RealityRenderer(),
+                  let headset = HeadphoneSculpture.make(model: model, finish: finish ?? .unreported) else { return }
             self.renderer = renderer
             self.onFirstFrame = onFirstFrame
             self.onReady = onReady
             self.orbit = orbit
+            self.finish = finish ?? .unreported
             revealing = animate
-            yaw = model == .xm6 ? -1.16 : -0.95
-            pitch = model == .xm6 ? -0.08 : -0.13
-            roll = model == .xm6 ? 0.28 : -0.17
+            yaw = model == .xm6 ? -0.97 : -0.95
+            pitch = model == .xm6 ? -0.09 : -0.13
+            roll = model == .xm6 ? 0.14 : -0.17
             renderer.cameraSettings.colorBackground = .color(CGColor(gray: 0, alpha: 0))
             renderer.cameraSettings.isToneMappingEnabled = true
             let camera = PerspectiveCamera()
             camera.camera.fieldOfViewInDegrees = 31
             camera.camera.near = 0.1
             camera.camera.far = 20
-            camera.position = [0, 0.02, model == .xm6 ? 5.58 : 5.3]
+            camera.position = [0, 0.02, model == .xm6 ? 5.15 : 5.3]
             renderer.entities.append(camera)
             renderer.activeCamera = camera
-            renderer.entities.append(light(at: [-3, 5, 4], intensity: model == .xm6 ? 2100 : 2300))
-            renderer.entities.append(light(at: [4, 1, 3], intensity: 820))
-            renderer.entities.append(light(at: [1, 3, -4], intensity: model == .xm6 ? 960 : 1350))
-            let headset = HeadphoneSculpture.make(model: model, finish: finish ?? .unreported)
+            renderer.entities.append(light(at: [-3, 5, 4], intensity: model == .xm6 ? 2400 : 2300))
+            renderer.entities.append(light(at: [4, 1, 3], intensity: model == .xm6 ? 1120 : 820))
+            renderer.entities.append(light(at: [1, 3, -4], intensity: 1350))
             self.headset = headset
             renderer.entities.append(headset)
             view.delegate = self
@@ -86,7 +88,20 @@ struct PortraitRenderer: NSViewRepresentable {
             view.needsDisplay = true
         }
 
-        func update(orbit: PortraitOrbit, reduceMotion: Bool, view: MTKView) {
+        func update(model: HeadphoneModelID, finish: HeadphoneFinish?, orbit: PortraitOrbit,
+                    reduceMotion: Bool, view: MTKView) {
+            let newFinish = finish ?? .unreported
+            // Configure once per model/session. Recolor in place so finishes preserve the orbit.
+            if newFinish != self.finish, let renderer, let headset {
+                self.finish = newFinish
+                if model != .xm6 || !HeadphoneSculpture.recolorXM6(headset, finish: newFinish) {
+                    guard let replacement = HeadphoneSculpture.make(model: model, finish: newFinish) else { return }
+                    renderer.entities.remove(headset)
+                    renderer.entities.append(replacement)
+                    self.headset = replacement
+                }
+                requestFrame(view)
+            }
             if reduceMotion && revealing {
                 revealing = false
                 pause(view)
@@ -120,14 +135,16 @@ struct PortraitRenderer: NSViewRepresentable {
                 revealing = false
                 pause(view)
             }
-            let remaining = Float(pow(1 - t, 3))
-            let scale = 1 - 0.06 * remaining
+            // Start and stop at rest. The shorter rise lets the final pose settle.
+            let progress = Float(t * t * (3 - 2 * t))
+            let remaining = 1 - progress
+            let scale = 1 - 0.08 * remaining
             headset.transform = Transform(
                 scale: SIMD3(repeating: scale),
-                rotation: simd_quatf(angle: pitch + Float(orbit.pitch) - 0.07 * remaining, axis: [1, 0, 0])
+                rotation: simd_quatf(angle: pitch + Float(orbit.pitch) - 0.10 * remaining, axis: [1, 0, 0])
                     * simd_quatf(angle: roll * (1 - 0.4 * remaining), axis: [0, 0, 1])
-                    * simd_quatf(angle: yaw + Float(orbit.yaw) + 0.47 * remaining, axis: [0, 1, 0]),
-                translation: [0, -0.09 * remaining, 0])
+                    * simd_quatf(angle: yaw + Float(orbit.yaw) + 0.52 * remaining, axis: [0, 1, 0]),
+                translation: [0, -0.14 * remaining, 0])
             needsFrame = false
             pendingDrawable = drawable
             do {

@@ -1,9 +1,9 @@
 {
   "schemaVersion": 2,
-  "title": "Design System: Project XMConnect",
+  "title": "Design System: Sonico",
   "extensions": {
     "motion": [
-      { "name": "device-arrival", "value": "580ms cubic ease-out", "purpose": "One native 3D turn when a session recognizes a model. Reduce Motion uses the resting pose." },
+      { "name": "device-arrival", "value": "640ms smoothstep turn; 190ms first-frame crossfade", "purpose": "One native 3D turn when a session recognizes a model. Reduce Motion uses the resting pose." },
       { "name": "control-selection", "value": "SwiftUI spring(response: 0.29, dampingFraction: 0.88)", "purpose": "Keep the listening-mode selection legible as it changes." },
       { "name": "control-reveal", "value": "220ms cubic-bezier(0.2, 0, 0, 1)", "purpose": "Reveal related controls and small state updates." },
       { "name": "page-change", "value": "170ms ease-out", "purpose": "Fade in a new page without moving the toolbar." },
@@ -12,7 +12,7 @@
   },
   "components": [],
   "narrative": {
-    "overview": "Native app with a pale device portrait, charcoal control groups, and lavender selected states. SwiftUI/AppKit controls and RealityKit geometry; there are no web component previews.",
+    "overview": "Native app with a studio-lit device portrait and finish-tinted surfaces and selections in light and dark appearance. SwiftUI/AppKit controls and RealityKit geometry; there are no web component previews.",
     "dos": ["Do distinguish demo data, connected state, pending writes, and device errors.", "Do keep permission and connection controls available while motion plays."],
     "donts": ["Don't replay the arrival animation on battery, settings, or ordinary navigation changes.", "Don't invent model/finish matches for unknown Bluetooth identities or copy proprietary art."]
   }

@@ -1,4 +1,4 @@
-# Project XMConnect
+# Sonico
 
 <!-- impeccable:product-schema 1 -->
 
@@ -26,13 +26,13 @@ WH-1000XM6 over Bluetooth Classic; user reports latest firmware. Exact firmware 
 
 ## Capabilities and Constraints
 
-- Minimum macOS 15; temporary product name Project XMConnect.
+- Minimum macOS 15. The native app is now named Sonico; the existing bundle identifier is retained.
 - Main window and menu bar share one serialized headphone session.
 - Initial milestone: pairing guidance, explicit connection, battery, NC/ambient/off, ambient level, EQ presets/bands, playback/volume, supported device settings, and connected-device display.
 - Capability/range discovery governs controls; never claim unsupported Sony features or assume every firmware supports the same commands.
 - No automatic device connection or hardware writes during agent testing. A clearly labeled, explicit demo mode may exercise the UI without Bluetooth.
 - Preserve upstream license notices. No Sony logos or extracted proprietary device artwork in shipping resources.
-- Distribution and final public branding remain undecided. Local development builds are not notarized releases.
+- Distribution and trademark clearance remain open. Local development builds are not notarized releases.
 
 ## Brand Commitments
 

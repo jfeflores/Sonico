@@ -6,10 +6,8 @@ final class HeadphoneModel {
     private(set) var snapshot: HeadphoneSnapshot
     var page = AppPage.device
     var showingConnection = false
-    private(set) var eqDraft: [Int32] = []
     private(set) var volumeDraft = 0.0
     private(set) var ambientDraft = 0.0
-    private(set) var clearBassDraft = 0.0
     var visibleError: String?
     private(set) var arrivalID: UUID?
     private(set) var portraitID: UUID?
@@ -68,23 +66,14 @@ final class HeadphoneModel {
     }
 
     private func synchronizeDrafts() {
-        if eqDraft != snapshot.bands { eqDraft = snapshot.bands }
         if volumeDraft != Double(snapshot.volume) { volumeDraft = Double(snapshot.volume) }
         if ambientDraft != Double(snapshot.ambientLevel) { ambientDraft = Double(snapshot.ambientLevel) }
-        let bass = Double(snapshot.clearBass ?? 0)
-        if clearBassDraft != bass { clearBassDraft = bass }
     }
 
     func send(_ command: HeadphoneCommand) {
         if snapshot.isDemo { applyDemo(command); return }
         start()
         service?.send(command)
-    }
-
-    func setBand(_ index: Int, _ value: Double) {
-        guard snapshot.canEditEqualizer, eqDraft.indices.contains(index), let range = snapshot.bandRange else { return }
-        eqDraft[index] = Int32(range.clamped(Int(value.rounded())))
-        send(.bands(eqDraft))
     }
 
     func setVolume(_ value: Double) {
@@ -99,21 +88,15 @@ final class HeadphoneModel {
         send(.ambient(Int(ambientDraft)))
     }
 
-    func setClearBass(_ value: Double) {
-        guard snapshot.clearBass != nil, let range = snapshot.clearBassRange else { return }
-        clearBassDraft = Double(range.clamped(Int(value.rounded())))
-        send(.clearBass(Int(clearBassDraft)))
-    }
-
-    func resetEqualizer() {
-        guard snapshot.canEditEqualizer, let range = snapshot.bandRange else { return }
-        eqDraft = Array(repeating: Int32(range.clamped(0)), count: eqDraft.count)
-        send(.bands(eqDraft))
-    }
-
     func enterDemo(model: HeadphoneModelID = .xm6, colorCode: UInt32 = 3) {
+        let preview = HeadphoneSnapshot.demo(model: model, colorCode: colorCode)
+        if snapshot.isDemo && snapshot.reportedModel == model {
+            // A finish audition should not reset EQ, playback, or the portrait's orbit.
+            snapshot.finish = preview.finish
+            return
+        }
         stop()
-        snapshot = .demo(model: model, colorCode: colorCode)
+        snapshot = preview
         beginArrival()
         visibleError = nil
         showingConnection = false
@@ -134,13 +117,9 @@ final class HeadphoneModel {
         case .disconnect: leaveDemo(); return
         case .noise(let mode): snapshot.noiseMode = mode
         case .ambient(let value): snapshot.ambientLevel = value
-        case .preset(let id): snapshot.preset = id
-        case .bands(let bands): snapshot.bands = bands
-        case .clearBass(let value): snapshot.clearBass = value
+        case .preset(let id):
+            if snapshot.presets.contains(where: { $0.id == id && !$0.isUserSlot }) { snapshot.preset = id }
         case .volume(let value): snapshot.volume = value
-        case .playback(let action):
-            if action == 1 { snapshot.playing = true }
-            if action == 2 { snapshot.playing = false }
         case .dsee(let value): snapshot.dsee = value
         case .speakToChat(let value): snapshot.speakToChat = value
         case .autoPause(let value): snapshot.autoPause = value
@@ -155,6 +134,6 @@ final class HeadphoneModel {
 }
 
 enum AppPage: String, CaseIterable, Identifiable {
-    case device = "My Device", equalizer = "Equalizer", settings = "Device Settings"
+    case device = "My Device", equalizer = "Equalizer", settings = "Settings"
     var id: String { rawValue }
 }

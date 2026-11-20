@@ -133,7 +133,8 @@ namespace mdr
                 else
                 {
                     Deserialize(RetPlayParamPlaybackControllerNameData, result, cmd);
-                    value = result.playbackName.name.value;
+                    if (result.playbackName.nameStatus == PlaybackNameStatus::SETTLED)
+                        value = result.playbackName.name.value;
                 }
                 if (detailedDataType == PlaybackDetailedDataType::TRACK_NAME)
                     self->mDetailsV1.mPlayTrackTitle = std::move(value);
@@ -316,6 +317,8 @@ namespace mdr
                         bands.push_back(static_cast<int>(result.bandSteps.value[i]) - offset);
                     self->mDetailsV1.mEqConfig.overwrite(std::move(bands));
                 }
+                else
+                    self->mDetailsV1.mEqConfig.overwrite(Vector<int>{});
             }
             else
             {
@@ -330,7 +333,10 @@ namespace mdr
                         bands.push_back(static_cast<int>(result.bandSteps.value[i]) - offset);
                     self->mDetailsV1.mEqConfig.overwrite(std::move(bands));
                 }
+                else
+                    self->mDetailsV1.mEqConfig.overwrite(Vector<int>{});
             }
+            self->mDetailsV1.mEqPresetKnown = true;
             self->mDetailsV1.mEqAvailable.overwrite(true);
             return MDR_EVENT_EQUALIZER_CHANGED;
         }

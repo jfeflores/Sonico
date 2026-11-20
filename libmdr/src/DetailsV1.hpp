@@ -183,6 +183,7 @@ namespace mdr
         UInt8 mPlayVolumeStep{};
         UInt8 mEqCapabilityBands{};
         UInt8 mEqCapabilityStep{};
+        bool mEqPresetKnown{};
         Vector<v1::t1::EqBandInformation> mEqBandInfo; // From EQEBB_RET_EXTENDED_INFO, Clear Bass included
         Vector<v1::t1::AutoPowerOffElementId> mAutoPowerOffCandidates;
 

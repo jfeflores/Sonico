@@ -364,6 +364,7 @@ namespace mdr
             return -1; // NOTE: convenience only for co_return SetLastError(...);
         }
 
+        String mLastReportedPlaybackSource;
         ProtocolFamily mProtocolFamily{ProtocolFamily::UNKNOWN};
         DetailsV1 mDetailsV1;
         DetailsV2 mDetailsV2;

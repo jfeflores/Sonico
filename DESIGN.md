@@ -1,29 +1,30 @@
 ---
-name: Project XMConnect
+name: Sonico
 description: A native macOS listening controller with a device-aware 3D portrait.
 colors:
-  background: '#101313'
-  surface: '#272B2C'
-  surface-high: '#363B3D'
-  outline: '#50585B'
-  primary: '#C3C2FF'
-  on-primary: '#24234F'
-  text: '#F1F1F0'
-  secondary: '#C9CBCB'
-  header: '#E7E8E5'
-  on-header: '#191C1C'
-  error: '#FFB4AB'
+  background: '#1D1F22'
+  surface: '#313439'
+  surface-high: '#3D4146'
+  outline: '#838A94'
+  primary: '#DADEEB'
+  on-primary: '#14191F'
+  text: '#F6F7F8'
+  secondary: '#CCD0D6'
+  header: '#DDE0E2'
+  on-header: '#171E23'
+  error: '#FFB8B0'
 typography:
   device-name:
     fontFamily: 'SF Pro'
-    fontSize: '30px'
+    fontSize: '31px'
     fontWeight: 600
 rounded:
-  card: '22px'
+  card: '20px'
   pill: '999px'
 spacing:
   group-gap: '12px'
-  card-inset: '22px'
+  card-inset: '18px'
+  page-inset: '20px'
 components:
   control-card:
     backgroundColor: '{colors.surface}'
@@ -36,7 +37,7 @@ components:
     rounded: '{rounded.pill}'
 ---
 
-# Design System: Project XMConnect
+# Design System: Sonico
 
 ## Overview
 
@@ -44,7 +45,7 @@ The product front-loads **device identity**, then makes the most common listenin
 
 ## Colors
 
-Pale ceramic separates the hardware portrait from the dark listening surface. Lavender identifies selection and actionable emphasis, not decorative borders. The portrait’s materials use the MDR-reported finish; a neutral render is used when color is unreported. The app does not infer finish from the UI accent.
+The front matter gives representative dark-mode tokens. `FinishPalette.swift` is authoritative: light and dark roles mix the MDR-reported shell into the canvas, cards, selection, and studio backdrop. Increase Contrast strengthens guide rules and secondary text. Text and controls do not rely on color alone. Unreported finishes use neutral geometry materials and a fallback UI palette.
 
 ## Typography
 
@@ -52,7 +53,7 @@ Use native SF type roles and SF Symbols. The model is the main display line; fin
 
 ## Layout
 
-The title bar keeps navigation native. The pale header pairs the model with its identity, stacking those elements when width is limited. Overview shortcuts prioritize listening mode and its ambient level, an EQ preview, playback, then connected devices. Keep the content column readable at wide window widths and use regular system controls for focus, menus, and slider adjustment.
+The title bar keeps navigation native: My Device, Equalizer, Settings. The studio panel keeps the larger portrait and identity side by side down to the window minimum, while the portrait column scales. Overview shortcuts prioritize listening mode and its ambient level, an EQ preview, playback, then connected devices. Keep the content column readable at wide window widths and use regular system controls for focus, menus, and slider adjustment.
 
 ## Elevation & Depth
 
@@ -64,10 +65,11 @@ Rounded groups contain related controls. Pills denote an action or selected opti
 
 ## Components
 
-- **Device portrait:** original model-specific meshes for WH-1000XM3 through WH-1000XM6. The XM6 sculpt uses the supplied reference for the padded crown, folding rails, broad matte shells and recessed cushions, with distinct Black, Platinum Silver and Midnight Blue materials. When recognized, the headset turns into a three-quarter resting pose in 580 ms, with no overshoot or idle loop. On completion the grab cursor and rotation controls unlock. A horizontal drag spins the model; a vertical drag tilts it within a stable range. Rotate left/right and Reset view also work without a drag. Reduce Motion skips straight to the resting pose. Model and finish are also text, independent of the animation.
-- **Noise mode:** text labels alongside icons and a lavender selection surface. The highlight settles with a short spring and only moves when the reported mode changes.
+- **Device portrait:** original model-specific meshes for WH-1000XM3 through WH-1000XM6. The XM6 sculpt references external angles and a parts diagram for its padded crown, folding hinges, lowered touch faces, recessed cushions and side-specific ports. It uses one cached mesh with finish-specific materials. When recognized, the headset fades in and turns into a three-quarter resting pose over 640 ms, easing in and out without overshoot or an idle loop. On completion the grab cursor and rotation controls unlock. A horizontal drag spins the model; a vertical drag tilts it within a stable range. Rotate left/right and Reset view also work without a drag. Reduce Motion skips straight to the resting pose. Model and finish are also text, independent of the animation.
+- **Noise mode:** text labels alongside icons and a finish-tinted selection surface. The highlight settles with a short spring and only moves when the reported mode changes.
 - **Equalizer:** the selected preset and response share a card. Edit Bands toggles between the summary and native frequency sliders for custom presets. The graph represents reported settings, not acoustic gain.
 - **Motion:** short, local fades for expansion and page changes; no idle loops. MetalKit requests portrait frames during the one-shot reveal or when orbit or viewport changes. Reduce Motion removes the entrance, selection travel, and fades while keeping direct manipulation.
+- **App icon:** original interlocking signal ribbons with native light/dark/tinted/clear renditions on supporting systems, plus an `.icns` fallback.
 - **Menu bar:** compact version of the same session, without the 3D portrait.
 
 ## Do's and Don'ts

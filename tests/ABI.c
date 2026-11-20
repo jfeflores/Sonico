@@ -2022,6 +2022,46 @@ static void test_equalizer_availability_follows_the_device(void)
     session_close(&session);
 }
 
+static void test_playback_metadata_notification(void)
+{
+    static const unsigned char table1[] = {0x07, 0x00, 0x00};
+    static const unsigned char table2[] = {0x07, 0x00, 0x00};
+    static const unsigned char first_track[] = {0xa9, 0x01, 0x02, 0x03, 'O', 'n', 'e',  0x01,
+                                                0x00, 0x02, 0x03, 'A',  'c', 't', 0x01, 0x00};
+    static const unsigned char second_track[] = {0xa9, 0x01, 0x02, 0x03, 'T',  'w', 'o',
+                                                 0x01, 0x00, 0x01, 0x00, 0x01, 0x00};
+    char value[16];
+    uint32_t count;
+    Session session;
+    Device device;
+    if (!session_open(&session))
+        return;
+    memset(&device, 0, sizeof(device));
+    device.transport = &session.transport;
+    device.table1 = table1;
+    device.table1_size = sizeof(table1);
+    device.table2 = table2;
+    device.table2_size = sizeof(table2);
+    device_run_init(&session, &device);
+    device_send(&device, MDR_DATA_TYPE_DATA_MDR, first_track, sizeof(first_track));
+    device_run(&session, &device, MDR_EVENT_PLAYBACK_CHANGED, "first track metadata notification");
+    count = sizeof(value);
+    check_result(mdrHeadphonesGetText(session.headphones, MDR_TEXT_TRACK_ARTIST, 0, value, &count), MDR_RESULT_OK,
+                 "first track artist is readable");
+    check(strcmp(value, "Act") == 0, "the active artist is reported");
+    device_send(&device, MDR_DATA_TYPE_DATA_MDR, second_track, sizeof(second_track));
+    device_run(&session, &device, MDR_EVENT_PLAYBACK_CHANGED, "second track metadata notification");
+    count = sizeof(value);
+    check_result(mdrHeadphonesGetText(session.headphones, MDR_TEXT_TRACK_TITLE, 0, value, &count), MDR_RESULT_OK,
+                 "second track title is readable");
+    check(strcmp(value, "Two") == 0, "track title follows the notification");
+    count = sizeof(value);
+    check_result(mdrHeadphonesGetText(session.headphones, MDR_TEXT_TRACK_ARTIST, 0, value, &count), MDR_RESULT_OK,
+                 "artist not shared by the new track is readable as empty");
+    check(value[0] == '\0', "the previous artist does not carry over");
+    session_close(&session);
+}
+
 /*
  * Which presets a device has is a capability, and until it answers, nothing is known: an empty
  * list has to mean "not said" rather than "none", or a device whose capability carries no list
@@ -2068,6 +2108,7 @@ static void test_equalizer_presets_follow_the_capability(void)
     memset(&equalizer, 0, sizeof(equalizer));
     check_result(mdrHeadphonesGetEqualizer(session.headphones, MDR_PROPERTY_CURRENT, &equalizer), MDR_RESULT_OK,
                  "equalizer is readable");
+    check(equalizer.preset == MDR_EQ_UNKNOWN, "a capability list does not establish the active EQ preset");
     equalizer.preset = MDR_EQ_ROCK;
     check_result(mdrHeadphonesSetEqualizerPreset(session.headphones, equalizer.preset), MDR_RESULT_OK,
                  "any encodable preset is accepted while the list is unknown");
@@ -5210,6 +5251,7 @@ int main(void)
     test_voice_assistant();
     test_equalizer_availability_follows_the_device();
     test_equalizer_presets_follow_the_capability();
+    test_playback_metadata_notification();
     test_listening_mode_rereads_what_it_takes_away();
     test_transmit_sequence_ignores_inbound_frames();
     test_v2_bootstrap();

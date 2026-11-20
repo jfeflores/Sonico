@@ -10,6 +10,7 @@ struct HeadphonePortrait: View {
     let animateArrival: Bool
     let onRevealStart: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.sonico) private var colors
     @State private var hasFrame = false
     @State private var ready = false
     @State private var orbit = PortraitOrbit()
@@ -39,10 +40,9 @@ struct HeadphonePortrait: View {
 
     private var viewport: some View {
         ZStack {
-            if !hasFrame {
-                Image(systemName: "headphones").font(.system(size: 52, weight: .ultraLight))
-                    .foregroundStyle(XMTheme.onHeader.opacity(0.62))
-            }
+            Image(systemName: "headphones").font(.system(size: 52, weight: .ultraLight))
+                .foregroundStyle(colors.headerSecondary)
+                .opacity(hasFrame ? 0 : 0.68)
             PortraitRenderer(model: model, finish: finish, orbit: orbit.dragged(by: drag),
                              animateArrival: animateArrival, reduceMotion: reduceMotion) {
                 hasFrame = true
@@ -50,7 +50,9 @@ struct HeadphonePortrait: View {
             } onReady: {
                 ready = true
             }
+            .opacity(hasFrame ? 1 : 0)
         }
+        .animation(animateArrival && !reduceMotion ? .easeOut(duration: 0.19) : nil, value: hasFrame)
         .allowsHitTesting(false)
         .overlay {
             if ready {
@@ -62,7 +64,7 @@ struct HeadphonePortrait: View {
             }
         }
         .accessibilityHidden(true) // Rotation and reset are separate native buttons.
-        .frame(height: 206)
+        .frame(height: 212)
     }
 }
 
@@ -98,7 +100,7 @@ enum HeadphoneSculpture {
         }
     }
 
-    static func make(model: HeadphoneModelID, finish: HeadphoneFinish) -> Entity {
+    static func make(model: HeadphoneModelID, finish: HeadphoneFinish) -> Entity? {
         if model == .xm6 { return makeXM6(finish: finish) }
         let p = Profile(model)
         let root = Entity()

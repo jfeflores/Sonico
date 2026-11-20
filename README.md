@@ -1,130 +1,57 @@
-# SonyHeadphonesClient
+# Sonico
 
-A spiritual successor to [Plutoberth's original SonyHeadphonesClient](https://github.com/Plutoberth/SonyHeadphonesClient) - now with standardized support for newer devices and more platforms.
+Sonico is an independent macOS app for controlling Sony WH-1000X headphones from your Mac. Switch listening modes, access the EQ stored on your headphones, and keep quick controls in the menu bar.
 
-There's no [Release](https://github.com/mos9527/SonyHeadphonesClient/releases) build for this branch yet - but you can always grab the latest [nightly builds](https://nightly.link/mos9527/SonyHeadphonesClient/workflows/cmake/v1-compat?preview), or use the [Web Version](#running-on-the-web).
+## Requirements
 
-[![Build](https://github.com/mos9527/sonyheadphonesclient/actions/workflows/cmake.yml/badge.svg)](https://github.com/mos9527/SonyHeadphonesClient/actions/workflows/cmake.yml)
-[![Nightly Builds](https://img.shields.io/badge/v1compat-builds-cyan)](https://nightly.link/mos9527/SonyHeadphonesClient/workflows/cmake/v1-compat?preview)
+- macOS 15 or later
+- Swift 6 with the macOS SDK, CMake 3.31 or later, and an installed `fmt` 12 package
+- For a live connection: WH-1000XM3, XM4, XM5, or XM6 paired in macOS Bluetooth Settings. Controls depend on the model and firmware. The XM6 is the primary target; [live validation is still in progress](docs/macos-validation.md).
 
-![Hero](./docs/images/sc-readme-hero.png)
+## Installation
 
-## Roadmap
+```sh
+git clone https://github.com/jfeflores/Sonico.git
+cd Sonico
+bash macos/build.sh
+```
 
-This branch is expected to be merged/released once general support for *all* legacy (`v1` protocol) devices is reached.
+The script builds `build-native/macos/Sonico.app` and runs the offline tests. The bundle is ad-hoc signed for local development, not notarized for distribution.
 
-These legacy devices are currently being verified against:
+## Quick start
 
-- [x] [WH-1000XM2 (support matrix pending)](https://github.com/mos9527/SonyHeadphonesClient/issues/61)
-- [x] [WH-1000XM3](./docs/device-support/WH-1000XM3.md)
-- [x] WH-1000XM4 (tested by [@Amrsatrio](https://github.com/Amrsatrio))
+Try the app without Bluetooth:
 
-Track the progress in [Support for V1/Legacy devices such as XM3s and XM4s - PR #56](https://github.com/mos9527/SonyHeadphonesClient/pull/56).
+```sh
+open build-native/macos/Sonico.app --args --demo
+```
 
-Feel free to submit support status in new Issues regarding v1 (XM4 and older) devices. We *really* need more volunteers :(
+For a live session, launch without `--demo`. Pair the headphones in macOS Bluetooth Settings, keep their original Bluetooth name, then choose **Find Paired Headphones** and **Connect** in Sonico. Connecting reads your EQ; it does not apply a preset or overwrite a custom slot.
 
-## Platform Support
+<img src="docs/images/sonico-demo.webp" width="650" alt="Sonico in demo mode, showing a Platinum Silver WH-1000XM6 portrait, tabs, and customizable shortcuts">
 
-**NOTE:** These apply to [`libmdr-bt`](./libmdr-bt/) (the Bluetooth platform backend) and [`client`](./client/) (the UI). For [`libmdr`](./libmdr/), the protocol library *itself* is platform agnostic.
+## What it does
 
-The architectures (x64, etc) shown here are the ones built by GitHub Actions, and are available in [nightly builds](https://nightly.link/mos9527/SonyHeadphonesClient/workflows/cmake/v1-compat?preview).
+- View battery and connection state, switch noise canceling and ambient modes, and change headphone settings that the device reports.
+- Read the active EQ and available profiles. Supported custom-slot edits stay local until you select **Apply Changes**. The demo shows factory names only, not personal profiles or invented gain values.
+- View playback information when the headphones share it, and use playback and volume controls from the window or menu bar.
+- Add, hide, and reorder controls with **Edit Shortcuts**. Rotate the original 3D headphone portrait by dragging or using its buttons; the connection reveal respects Reduce Motion.
 
-| Platform         | Support Status | Maintainers |
-|------------------|----------------|----------------------|
-| Windows (`x86/x64/ARM64`, [Windows XP SP2](#running-compatibility-builds) and up) | Full Support | [@mos9527](https://github.com/mos9527), [@Amrsatrio](https://github.com/Amrsatrio) |
-| Linux  (`x86/x64/ARMv7/ARM64`)| Full Support | [@mos9527](https://github.com/mos9527) |
-| macOS   (Universal) | Full Support | [@mos9527](https://github.com/mos9527) |
-| iOS (`ARM64`, [15.0+](https://github.com/mos9527/SonyHeadphonesClient/pull/70)) | Full Support, [manual build/install required](./DEVELOPER.md#ios-xcode) | [@mos9527](https://github.com/mos9527) |
-| Android (`ARMv7/ARM64`, [5.0+](https://github.com/mos9527/SonyHeadphonesClient/pull/69)) | Supported, `client` only | [@mos9527](https://github.com/mos9527) |
-| Web (`WASM32`, Emscripten) | Full Support | [@mos9527](https://github.com/mos9527) |
-| HarmonyOS (`ARM64`, [OpenHarmony](https://github.com/mos9527/SonyHeadphonesClient/pull/68)) | Supported, `client` only, [manual build required](./DEVELOPER.md#openharmony-deveco-studio) | [@mos9527](https://github.com/mos9527) |
+## Documentation
 
-For device support, refer to [`docs/device-support`](./docs/device-support/). If the feature support status for your own device is missing/incorrect/untested there, feel free to submit an [Issue](https://github.com/mos9527/SonyHeadphonesClient/issues/new) so we can work on it!
+- [Native build and usage notes](macos/README.md)
+- [Validation results and known limits](docs/macos-validation.md)
+- [Design system](DESIGN.md)
+- [Separate upstream reference client](client/README.md)
 
-## Running on the Web
+## Credits
 
-Besides the broad [native platform support](#platform-support), the client is also available as a Progressive Web App (PWA) with full UI/feature parity with other platforms.
+- **Jesus Flores ([@jfeflores](https://github.com/jfeflores)) and Sonico contributors** created the separate SwiftUI/AppKit app, menu-bar controls, device-aware interface, EQ workflow, and customizable shortcuts. Sonico also adds the original RealityKit portraits and icon, a native build, and targeted fixes and tests for the shared libraries.
+- **[mos9527](https://github.com/mos9527), [Amr Satrio](https://github.com/Amrsatrio), and the [SonyHeadphonesClient contributors](https://github.com/mos9527/SonyHeadphonesClient)** built and maintained the inherited protocol libraries, Bluetooth backends, cross-platform reference client, and test infrastructure. Sonico uses and extends that work; it did not originate those components.
+- **[Plutoberth and contributors](https://github.com/Plutoberth/SonyHeadphonesClient)** created the earlier project in this lineage. Their original notice is preserved alongside the direct upstream notice.
 
-**Live version is available** at: <https://mos9527.com/SonyHeadphonesClient/>
+Sonico is not affiliated with or endorsed by Sony.
 
-A [Web Serial](https://caniuse.com/web-serial)-supporting browser is required. You can expect the app to work on:
+## License
 
-- Desktop Chrome (89+), and Chromium derivatives (also 89+, e.g. Edge, Opera)
-- [Android Chrome (148+)](https://chromestatus.com/feature/6043992171085824)
-- [Desktop Firefox (151+)](https://hacks.mozilla.org/2026/05/web-serial-support-in-firefox/)
-
-## Running Compatibility Builds
-
-Compatibility builds are offered for certain platforms, where limited sets of features are made available to make it run there. These builds are suffixed with `-compatibility`, and are available in [nightly](https://nightly.link/mos9527/SonyHeadphonesClient/workflows/cmake/v1-compat?preview) and [Releases (TBD)](https://github.com/mos9527/SonyHeadphonesClient/releases).
-
-Currently, the following compatibility builds are available.
-
-### Windows Compatibility Builds
-
-Available as `SonyHeadphonesClient-win-x64-compatibility.exe` and `SonyHeadphonesClient-win-x86-compatibility.exe` in the CI. See [SHC Developer's Guide](./DEVELOPER.md#windows) for build flags.
-
-These builds lower the minimal required Windows version from Windows 8.1 in the regular builds to Windows XP SP2.
-
-- This build has no Bluetooth LE support, which is only introduced in [Windows 8.1 and above](https://learn.microsoft.com/en-us/windows-hardware/drivers/bluetooth/bluetooth-support-in-previous-windows-versions).  
-- Threading is disabled in this build, see [e636d54](https://github.com/mos9527/SonyHeadphonesClient/commit/e636d54f039e85d9d915b0dc050968ffc18e25b6).
-- [YY-Thunks](https://github.com/Chuyu-Team/YY-Thunks) is used to provide compatibility for Windows XP. Otherwise this would've been limited for Windows 7 and above.
-
-## Fonts & Localization
-
-The Client app uses your system's locale settings to select its application locale (`AppLocale`) and the default font your OS provides.
-
-Locale can be overridden by using `--locale <locale>`.
-
-- For the Web version, this can be manually specified in the URL via `...?locale=jp`, e.g. `https://mos9527.com/SonyHeadphonesClient/?locale=jp`.
-
-The following locales are supported:
-
-| Locale | Language | Localizer |
-| ------ | -------- | --------- |
-| default | Default (English) | - |
-| en | Default (English) | - |
-| sc | 简体中文/Simplified Chinese | [@mos9527](https://github.com/mos9527) |
-| tc | 繁体中文/Traditional Chinese | [@mos9527](https://github.com/mos9527) |
-| jp | 日本語/Japanese | TBD |
-| kr | 한국어/Korean | TBD |
-
-Additionally, for the Desktop (non-Web) client, `--font <file-path>` optionally loads an external font instead of the default font selected for the locale.
-
-- Running `./SonyHeadphonesClient.exe --locale jp --font NotoSansCJKjp-Regular.otf` selects the Japanese application locale and the specified Noto Sans font.
-
-## For Developers
-
-See the [SHC Developer's Guide](./DEVELOPER.md) for [building instructions](./DEVELOPER.md#building) and development details.
-
-See also [Contributing](./.github/CONTRIBUTING.md) for basic guidelines.
-
-Extensive documentation is also available in the source files. Refer to the respective README files in each source folder to understand what they do!
-
-## Platform Quirks
-
-### Linux
-
-On Linux, you may not see player metadata (track title, artist, etc.) despite correct output from the `playerctl metadata` command,
-while your device has proper AVRCP support (e.g. it works on other platforms).
-
-This mostly occurs with multipoint setups, and is mostly an implementation problem.
-
-- You (or your distro) may have a misconfigured [MPRIS](https://wiki.archlinux.org/title/MPRIS) service. One way to remedy this
-  is to manually run `mpris-proxy` (available in the `bluez-tools`/`bluez-utils` package) in the background, or as a systemd service.
-- See also
-  - <https://wiki.archlinux.org/title/MPRIS>
-  - <https://github.com/bluez/bluez/issues/868>
-  - [#65](https://github.com/mos9527/SonyHeadphonesClient/pull/65)
-- Alternatively, the Linux Client App can be used as a fallback. This was introduced in [#63](https://github.com/mos9527/SonyHeadphonesClient/pull/63), where the wearing status of the device is used to control the host player status, thus bypassing AVRCP controls.
-- This is disabled by default. You can enable it via the `--pause-media-on-remove` flag when launching the Client App. Thanks [@phedoreanu](https://github.com/phedoreanu) for the implementation!
-
-
-## See also
-
-- [libmdr-py - offical Python bindings](https://github.com/mos9527/libmdr-py) for `libmdr` and `libmdr-bt`, also providing a dedicated **command-line interface (CLI)**.
-- [Lauscher - a Sailfish OS app for Sony Headphones using libmdr](https://github.com/Wunderfitz/harbour-lauscher) by [@Wunderfitz](https://github.com/Wunderfitz)
-- Feel free to promote yours in [the Discussion page](https://github.com/mos9527/SonyHeadphonesClient/discussions/79)!
-
----
-
-*This is a personal project, and is not officially endorsed by Sony Corporation in any capacity.*
+The native Sonico app is licensed under the [GNU Affero General Public License v3.0 only](LICENSE). The inherited code and shared libraries retain their [MIT license](LICENSES/MIT-SonyHeadphonesClient.txt). See the [license and attribution notice](LICENSES/NOTICE.txt) for scope, original notices, and dependency terms.

@@ -7,13 +7,13 @@ import Foundation
 // `bash macos/build.sh` has produced those libraries. It is not an app bundler.
 let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().path
 let package = Package(
-    name: "ProjectXMConnect",
+    name: "Sonico",
     platforms: [.macOS(.v15)],
-    products: [.executable(name: "ProjectXMConnect", targets: ["ProjectXMConnect"])],
+    products: [.executable(name: "Sonico", targets: ["Sonico"])],
     targets: [
         .systemLibrary(name: "XMConnectBridge", path: "macos/Bridge"),
         .executableTarget(
-            name: "ProjectXMConnect",
+            name: "Sonico",
             dependencies: ["XMConnectBridge"],
             path: "macos/Sources",
             swiftSettings: [.unsafeFlags([

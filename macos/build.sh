@@ -16,6 +16,6 @@ cmake -S "$ROOT" -B "$BUILD" \
     -DMDR_ENABLE_LOG=OFF \
     -DMDR_DEBUG=OFF \
     "$@"
-cmake --build "$BUILD" --target ProjectXMConnect xmconnect_tests mdr_tests --parallel 4
+cmake --build "$BUILD" --target Sonico xmconnect_tests mdr_tests --parallel 4
 ctest --test-dir "$BUILD" --output-on-failure
-printf '\nApp: %s/macos/Project XMConnect.app\n' "$BUILD"
+printf '\nApp: %s/macos/Sonico.app\n' "$BUILD"

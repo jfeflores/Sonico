@@ -1,0 +1,17 @@
+{
+  "fill-specializations": [
+    {"value": {"automatic-gradient": "srgb:0.292,0.286,0.482,1.0"}},
+    {"appearance": "dark", "value": {"automatic-gradient": "srgb:0.109,0.102,0.193,1.0"}}
+  ],
+  "groups": [
+    {
+      "layers": [
+        {"glass": true, "image-name": "signal.svg", "name": "Signal"},
+        {"glass": true, "image-name": "echo.svg", "name": "Echo"}
+      ],
+      "shadow": {"kind": "neutral", "opacity": 0.38},
+      "translucency": {"enabled": true, "value": 0.22}
+    }
+  ],
+  "supported-platforms": {"squares": ["macOS"]}
+}

@@ -29,11 +29,13 @@ struct HeadphoneFinish: Equatable, Sendable {
         // Both MDR families define 0x11...0x1E as variants of 0x01...0x0E.
         let base = (0x11...0x1E).contains(code) ? code - 0x10 : code
         if model == .xm6 {
-            // Calibrated against the three reference finishes; the device still selects the finish.
+            // Use known XM6 materials. Unverified retail names stay demo-only.
             switch base {
             case 1: return Self(name: "Black", shell: 0x27282B, cushion: 0x212224)
             case 3: return Self(name: "Platinum Silver", shell: 0xC7C8BA, cushion: 0xB8B9AD)
-            case 5: return Self(name: "Midnight Blue", shell: 0x263447, cushion: 0x202C3C)
+            case 5: return Self(name: "Midnight Blue", shell: 0x263B57, cushion: 0x202C3C)
+            case 6: return Self(name: "Pink", shell: 0xC7AAA7, cushion: 0xB29491)
+            case 8: return Self(name: "Green", shell: 0x717662, cushion: 0x555948)
             default: break
             }
         }
@@ -63,6 +65,10 @@ struct DeviceRange: Equatable, Sendable {
     let step: Int
     var sliderBounds: ClosedRange<Double> { Double(lower)...Double(max(lower + 1, upper)) }
     func clamped(_ value: Int) -> Int { min(upper, max(lower, value)) }
+    func contains(_ value: Int) -> Bool {
+        value >= lower && value <= upper && step > 0 && (value - lower) % step == 0
+    }
+    var neutral: Int { lower + ((clamped(0) - lower) / max(1, step)) * max(1, step) }
 }
 
 enum ConnectionPhase: Equatable, Sendable {
@@ -94,6 +100,53 @@ enum NoiseMode: UInt32, CaseIterable, Identifiable, Sendable {
 struct EqualizerPreset: Identifiable, Equatable, Sendable {
     let id: UInt32
     let name: String
+
+    var isUserSlot: Bool { Self.isUserSlot(id) }
+    static func isUserSlot(_ id: UInt32) -> Bool { (24...29).contains(id) }
+
+    static func displayName(_ id: UInt32) -> String {
+        let labels = ["Off", "Rock", "Pop", "Jazz", "Dance", "EDM", "R&B / Hip-Hop", "Acoustic",
+                      "Bright", "Excited", "Mellow", "Relaxed", "Vocal", "Treble Boost", "Bass Boost", "Speech",
+                      "Heavy", "Clear", "Hard", "Soft", "Game", "FPS 1", "FPS 2", "FPS 3",
+                      "Manual", "Custom 1", "Custom 2", "Custom 3", "Custom 4", "Custom 5"]
+        return Int(id) < labels.count ? labels[Int(id)] : "Preset \(id)"
+    }
+
+    static func factoryDemo(for model: HeadphoneModelID) -> [Self] {
+        // XM6's device support notes confirm Heavy through Soft. Earlier XM models
+        // showcase the legacy factory choices; custom slots and curves are not bundled.
+        let ids: [UInt32] = model == .xm6 ? [0, 16, 17, 18, 19] : [0] + Array(8...15)
+        return ids.map { Self(id: $0, name: displayName($0)) }
+    }
+}
+
+struct EqualizerValues: Equatable, Sendable {
+    let preset: UInt32
+    var bands: [Int32]
+    var clearBass: Int?
+}
+
+struct EqualizerEdit: Equatable, Sendable {
+    let original: EqualizerValues
+    var proposed: EqualizerValues
+
+    init(_ values: EqualizerValues) { original = values; proposed = values }
+
+    func isValid(against current: EqualizerValues?, bandRange: DeviceRange?, bassRange: DeviceRange?) -> Bool {
+        guard original == current, original.preset == proposed.preset, EqualizerPreset.isUserSlot(original.preset),
+              proposed != original, proposed.bands.count == original.bands.count else { return false }
+        if original.bands != proposed.bands {
+            guard !proposed.bands.isEmpty, let bandRange, proposed.bands.allSatisfy({ bandRange.contains(Int($0)) }) else { return false }
+        }
+        if original.clearBass != proposed.clearBass {
+            guard original.clearBass != nil, let bass = proposed.clearBass, let bassRange, bassRange.contains(bass) else { return false }
+        }
+        return true
+    }
+}
+
+enum PlaybackState: UInt32, Equatable, Sendable {
+    case unknown, stopped, playing, paused
 }
 
 struct ConnectedDevice: Identifiable, Equatable, Sendable {
@@ -135,6 +188,7 @@ struct HeadphoneSnapshot: Equatable, Sendable {
     var ambientRange: DeviceRange?
     var eqAvailable = false
     var preset: UInt32 = 0
+    var activePresetReported = false
     var presets: [EqualizerPreset] = []
     var bands: [Int32] = []
     var frequencies: [Int] = []
@@ -152,12 +206,17 @@ struct HeadphoneSnapshot: Equatable, Sendable {
     var volume = 0
     var volumeRange: DeviceRange?
     var playbackAvailable = false
-    var playing = false
+    var playbackMetadataAvailable = false
+    var playbackState: PlaybackState = .unknown
+    var playing: Bool { playbackState == .playing }
     var track = ""
     var artist = ""
     var album = ""
     var pairedDevices: [ConnectedDevice] = []
+    var canSelectPlaybackSource = false
+    var automaticSourceSwitch: Bool?
     var generalSettings: [GeneralSetting] = []
+    var advancedSettings = AdvancedDeviceSettings()
     var error: String?
     var deviceAlert: String?
     var applying = false
@@ -165,8 +224,29 @@ struct HeadphoneSnapshot: Equatable, Sendable {
 
     var controllable: Bool { phase == .ready }
     var connectedDevices: [ConnectedDevice] { pairedDevices.filter(\.connected) }
-    var presetName: String { presets.first { $0.id == preset }?.name ?? "Device preset" }
-    var canEditEqualizer: Bool { eqAvailable && (24...29).contains(preset) }
+    var playbackDeviceName: String? { connectedDevices.first(where: \.playing)?.name }
+    var playbackTitle: String {
+        if isDemo { return "No playback in demo" }
+        if playbackState == .stopped { return "Nothing playing" }
+        if playbackMetadataAvailable && !track.isEmpty { return track }
+        if playbackState == .playing { return "Playing · Track not shared" }
+        if playbackState == .paused { return "Paused" }
+        return "No track information"
+    }
+    var presetName: String {
+        guard activePresetReported else { return "Preset not reported" }
+        return presets.first { $0.id == preset }?.name ?? EqualizerPreset.displayName(preset)
+    }
+    var equalizerValues: EqualizerValues? {
+        guard eqAvailable && activePresetReported else { return nil }
+        return EqualizerValues(preset: preset, bands: bands, clearBass: clearBass)
+    }
+    var canEditEqualizer: Bool {
+        // V1 writes bands to an unspecified slot; read its settings but do not offer slot edits.
+        !isDemo && reportedModel?.usesLegacyProtocol == false && equalizerValues != nil
+            && EqualizerPreset.isUserSlot(preset) && !bands.isEmpty
+            && (bandRange != nil || (clearBass != nil && clearBassRange != nil))
+    }
     var status: String { isDemo ? "Demo · No headphone connection" : phase.label }
     var availableNoiseModes: [NoiseMode] {
         [NoiseMode.cancelling, .ambient, .off].filter { $0 == .off || ($0 == .cancelling && supportsNC) || ($0 == .ambient && supportsAmbient) }
@@ -181,6 +261,10 @@ struct HeadphoneSnapshot: Equatable, Sendable {
         s.name = model.rawValue
         s.reportedModel = model
         s.finish = HeadphoneFinish.reported(colorCode, model: model)
+        if model == .xm6, let finish = s.finish {
+            let demoName = switch colorCode { case 6: "Sand Pink"; case 8: "Olive Gray"; default: finish.name }
+            s.finish = .init(name: demoName, shell: finish.shell, cushion: finish.cushion)
+        }
         s.battery = 93
         s.codec = "AAC"
         s.firmware = "Illustrative — not read from a device"
@@ -190,14 +274,8 @@ struct HeadphoneSnapshot: Equatable, Sendable {
         s.ambientLevel = 12
         s.ambientRange = DeviceRange(lower: 1, upper: 20, step: 1)
         s.eqAvailable = true
-        s.preset = 26
-        s.presets = [EqualizerPreset(id: 0, name: "Off"), EqualizerPreset(id: 16, name: "Heavy"),
-                     EqualizerPreset(id: 17, name: "Clear"), EqualizerPreset(id: 18, name: "Hard"),
-                     EqualizerPreset(id: 19, name: "Soft"), EqualizerPreset(id: 25, name: "Custom 1"),
-                     EqualizerPreset(id: 26, name: "Custom 2")]
-        s.bands = [1, 1, -2, -2, -1, 0, -1, 0, 4, 2]
-        s.frequencies = [31, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
-        s.bandRange = DeviceRange(lower: -6, upper: 6, step: 1)
+        s.activePresetReported = true
+        s.presets = EqualizerPreset.factoryDemo(for: model)
         s.dsee = true
         s.dseeName = "DSEE Extreme"
         s.speakToChat = false
@@ -211,11 +289,7 @@ struct HeadphoneSnapshot: Equatable, Sendable {
         s.volume = 15
         s.volumeRange = DeviceRange(lower: 0, upper: 30, step: 1)
         s.playbackAvailable = true
-        s.playing = false
-        s.track = "Your music, your space"
-        s.artist = "Illustrative playback · Demo mode"
-        s.pairedDevices = [ConnectedDevice(id: "demo-phone", name: "Example iPhone", connected: true, playing: false),
-                           ConnectedDevice(id: "demo-mac", name: "Example Mac", connected: true, playing: true)]
+        s.playbackState = .stopped
         return s
     }
 }
@@ -238,9 +312,11 @@ struct WriteBatch {
 
 enum HeadphoneCommand: Sendable {
     case discover, connect(PairedHeadphone), disconnect, sync
-    case noise(NoiseMode), ambient(Int), preset(UInt32), bands([Int32]), clearBass(Int)
+    case noise(NoiseMode), ambient(Int), preset(UInt32), equalizerEdit(EqualizerEdit)
+    case advancedSetting(AdvancedDeviceSettingChange)
     case volume(Int), playback(UInt32), dsee(Bool), speakToChat(Bool), autoPause(Bool)
     case priority(UInt32), listening(UInt32), generalBoolean(UInt32, Bool), generalList(UInt32, UInt32)
+    case selectPlaybackSource(String), automaticSourceSwitch(Bool)
     case answerAlert(Bool), shutdown
 }
 

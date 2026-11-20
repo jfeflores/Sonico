@@ -104,6 +104,29 @@ namespace mdr
         if (raw == -1 || mFailed)
             return mLastErrorCode;
         outEvent = static_cast<MDREvent>(raw);
+        if (outEvent == MDR_EVENT_PAIRED_DEVICES_CHANGED)
+        {
+            const auto updateSource = [this](auto& state)
+            {
+                const auto active =
+                    std::find_if(state.mPairedDevices.begin(), state.mPairedDevices.end(),
+                                 [](const auto& device) { return device.connected && device.playbackDevice; });
+                const String source = active == state.mPairedDevices.end() ? String{} : active->macAddress;
+                if (!mLastReportedPlaybackSource.empty() && source != mLastReportedPlaybackSource)
+                {
+                    state.mPlayTrackTitle.clear();
+                    state.mPlayTrackArtist.clear();
+                    state.mPlayTrackAlbum.clear();
+                    state.mPlayTrackGenre.clear();
+                    state.mPlayPause = {};
+                }
+                mLastReportedPlaybackSource = source;
+            };
+            if (mProtocolFamily == ProtocolFamily::V1)
+                updateSource(mDetailsV1);
+            else if (mProtocolFamily == ProtocolFamily::V2)
+                updateSource(mDetailsV2);
+        }
         return MDR_RESULT_OK;
     }
 
@@ -2969,7 +2992,10 @@ MDRResult mdrHeadphonesGetEqualizer(MDRHeadphones* headphones, MDRPropertyType t
                        [&](const auto& state) -> MDRResult
                        {
                            *outEqualizer = {
-                               .preset = from_protocol(ReadProperty(state.mEqPresetId, type)),
+                               .preset =
+                                   state.mEqPresetKnown || (type == MDR_PROPERTY_DESIRED && state.mEqPresetId.dirty())
+                                   ? from_protocol(ReadProperty(state.mEqPresetId, type))
+                                   : MDR_EQ_UNKNOWN,
                                .clear_bass = static_cast<int32_t>(ReadProperty(state.mEqClearBass, type)),
                                .band_count = static_cast<uint32_t>(ReadProperty(state.mEqConfig, type).size()),
                                .dsee_enabled = static_cast<MDRBoolean>(ReadProperty(state.mUpscalingEnabled, type)),

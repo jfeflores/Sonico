@@ -1,0 +1,26 @@
+Sonico — a native macOS controller for Sony headphones
+Copyright (c) 2026 Jesus Flores and Sonico contributors
+
+Sonico's native application, original icon and portrait assets, and the
+native build and test code under macos/ are released under the GNU Affero
+General Public License, version 3 only (AGPL-3.0-only). See LICENSE at the
+repository root, or LICENSE.txt in the application bundle. The Sonico app
+as a combined work is distributed under those terms. It comes with no
+warranty, to the extent permitted by law. You may redistribute and modify
+it under the terms of the AGPL. This notice does not revoke any license
+already granted for earlier revisions.
+
+Sonico uses the SonyHeadphonesClient protocol and Bluetooth libraries.
+The inherited project and the separate reference client, including changes
+to the shared protocol and transport libraries and their test suites, remain
+available under the original MIT grant. The project preserves that grant and
+the copyright notices for SonyHeadphonesClient and its predecessor in
+MIT-SonyHeadphonesClient.txt and MIT-Plutoberth.txt. Other components with
+their own notices retain their licenses. The fmt notice is FMT-LICENSE.txt
+in the bundle and macos/Resources/FMT-LICENSE.txt in source.
+
+Source and build instructions: https://github.com/jfeflores/Sonico
+To distribute a binary build, make its corresponding source available
+under the terms of the AGPL and preserve the applicable notices.
+
+Sonico is independent and is not affiliated with or endorsed by Sony.

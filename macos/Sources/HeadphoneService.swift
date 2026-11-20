@@ -18,6 +18,7 @@ final class HeadphoneService: @unchecked Sendable {
     private var protocolVersion: UInt32 = MDR_PROTOCOL_V2
     private var batteryReported = false
     private var writeBatch = WriteBatch()
+    private var pendingEqualizerEdit: EqualizerEdit?
 
     init(deliver: @escaping @MainActor @Sendable (HeadphoneSnapshot) -> Void) {
         self.deliver = deliver
@@ -71,6 +72,7 @@ final class HeadphoneService: @unchecked Sendable {
         discovering = false
         deadline = nil
         writeBatch = WriteBatch()
+        pendingEqualizerEdit = nil
         batteryReported = false
     }
 
@@ -144,14 +146,40 @@ final class HeadphoneService: @unchecked Sendable {
             var value = MDRNoiseControl()
             result = mdrHeadphonesGetNoiseControl(h, MDR_PROPERTY_DESIRED, &value)
             if result == MDR_RESULT_OK { value.ambient_level = UInt32(max(0, level)); result = mdrHeadphonesSetNoiseControl(h, &value) }
-        case .preset(let id): result = mdrHeadphonesSetEqualizerPreset(h, id)
-        case .bands(let bands):
-            result = bands.withUnsafeBufferPointer { mdrHeadphonesSetEqualizerBands(h, $0.baseAddress, UInt32($0.count)) }
-        case .clearBass(let value): result = mdrHeadphonesSetEqualizerClearBass(h, Int32(value))
+        case .preset(let id):
+            guard state.eqAvailable, state.activePresetReported, !state.applying,
+                  state.presets.contains(where: { $0.id == id }), id != state.preset else { return }
+            result = mdrHeadphonesSetEqualizerPreset(h, id)
+        case .equalizerEdit(let edit):
+            guard !state.applying, protocolVersion == MDR_PROTOCOL_V2, state.canEditEqualizer,
+                  edit.isValid(against: state.equalizerValues, bandRange: state.bandRange, bassRange: state.clearBassRange) else {
+                state.error = "The headphone EQ changed or is unavailable. Open the editor again to use its latest values."
+                publish()
+                return
+            }
+            // Keep the draft on this side of the ABI until pending notifications have been read.
+            pendingEqualizerEdit = edit
+            state.applying = true
+            publish()
+            return
+        case .advancedSetting(let change): result = DeviceSettingService.stage(change, on: h)
+        case .selectPlaybackSource(let id):
+            guard !state.applying, state.canSelectPlaybackSource, !id.isEmpty,
+                  state.connectedDevices.contains(where: { $0.id == id && !$0.playing }) else { return }
+            result = id.withCString { address in
+                var action = MDRPairedDeviceAction(command: MDR_PAIRED_DEVICE_SELECT_PLAYBACK,
+                                                   device_id: address, device_id_size: UInt32(id.utf8.count))
+                return mdrHeadphonesSetPairedDevice(h, &action)
+            }
+            if result == MDR_RESULT_OK { pendingSync |= xmPlaybackSyncFlags() }
+        case .automaticSourceSwitch(let enabled):
+            guard !state.applying, let current = state.automaticSourceSwitch, current != enabled else { return }
+            result = mdrHeadphonesSetSourceSwitchControl(h, enabled ? MDR_TRUE : MDR_FALSE)
         case .volume(let value): result = mdrHeadphonesSetPlaybackVolume(h, UInt32(max(0, value)))
         case .playback(let action):
             var value = MDRPlaybackCommand(action: action)
             result = mdrHeadphonesSendPlaybackCommand(h, &value)
+            if result == MDR_RESULT_OK { pendingSync |= xmPlaybackSyncFlags() }
         case .dsee(let enabled): result = mdrHeadphonesSetDSEE(h, enabled ? MDR_TRUE : MDR_FALSE)
         case .speakToChat(let enabled):
             var value = MDRSpeakToChat()
@@ -164,10 +192,7 @@ final class HeadphoneService: @unchecked Sendable {
         case .priority(let priority):
             var value = MDRConnectionMode(audio_priority: priority)
             result = mdrHeadphonesSetConnectionMode(h, &value)
-        case .listening(let mode):
-            var value = MDRListening()
-            result = mdrHeadphonesGetListening(h, MDR_PROPERTY_DESIRED, &value)
-            if result == MDR_RESULT_OK { value.mode = mode; result = mdrHeadphonesSetListening(h, &value) }
+        case .listening(let mode): result = DeviceSettingService.stageListening(mode, on: h)
         case .generalBoolean(let index, let enabled):
             var value = MDRGeneralSetting(index: index, boolean_value: enabled ? MDR_TRUE : MDR_FALSE, list_value: 0)
             result = mdrHeadphonesSetGeneralSetting(h, &value)
@@ -190,7 +215,7 @@ final class HeadphoneService: @unchecked Sendable {
             if case .answerAlert = command { writeBatch.stage(at: clock.now, immediate: true) }
             else { writeBatch.stage(at: clock.now) }
         }
-        state.applying = mdrHeadphonesIsDirty(h) != MDR_FALSE
+        state.applying = pendingEqualizerEdit != nil || mdrHeadphonesIsDirty(h) != MDR_FALSE
         publish()
     }
 
@@ -238,12 +263,13 @@ final class HeadphoneService: @unchecked Sendable {
             return
         }
         var receivedEvent = false
+        var drained = false
         // Bounded work; no blocking poll and no busy-loop on transport write readiness.
         for _ in 0..<8 {
             var event: UInt32 = MDR_EVENT_NONE
             let result = mdrHeadphonesPoll(h, &event)
             guard result == MDR_RESULT_OK else { fail(errorText(result)); return }
-            if event == MDR_EVENT_NONE { break }
+            if event == MDR_EVENT_NONE { drained = true; break }
             receivedEvent = true
             if event == MDR_EVENT_INITIALIZE_COMPLETE {
                 state.phase = .ready; deadline = nil; pendingSync |= xmDefaultSyncFlags()
@@ -255,23 +281,53 @@ final class HeadphoneService: @unchecked Sendable {
             }
             if event == MDR_EVENT_ALERT { state.deviceAlert = text(MDR_TEXT_LAST_ALERT, on: h) }
         }
+        if receivedEvent && state.phase == .ready { readSnapshot(h) }
         if mdrHeadphonesIsReady(h) != MDR_FALSE {
+            if drained, mdrHeadphonesIsDirty(h) == MDR_FALSE, let edit = pendingEqualizerEdit {
+                pendingEqualizerEdit = nil
+                submitEqualizer(edit, on: h)
+                guard headphones != nil else { return }
+            }
             if mdrHeadphonesIsDirty(h) != MDR_FALSE && writeBatch.mayCommit(at: clock.now) {
                 let result = mdrHeadphonesRequestCommit(h)
                 guard result == MDR_RESULT_OK else { fail(errorText(result)); return }
                 writeBatch = WriteBatch()
-            } else if mdrHeadphonesIsDirty(h) == MDR_FALSE && pendingSync != 0 {
+            } else if pendingEqualizerEdit == nil && mdrHeadphonesIsDirty(h) == MDR_FALSE && pendingSync != 0 {
                 let flags = pendingSync; pendingSync = 0
                 let result = mdrHeadphonesRequestSync(h, flags)
                 guard result == MDR_RESULT_OK else { fail(errorText(result)); return }
             }
         }
-        let applying = mdrHeadphonesIsDirty(h) != MDR_FALSE
+        let applying = pendingEqualizerEdit != nil || mdrHeadphonesIsDirty(h) != MDR_FALSE
         guard receivedEvent || applying != state.applying else { return }
         state.applying = applying
-        if receivedEvent && state.phase == .ready { readSnapshot(h) }
         // No timestamp in the value: duplicate notifications should not redraw the UI.
         publish()
+    }
+
+    private func submitEqualizer(_ edit: EqualizerEdit, on h: OpaquePointer) {
+        guard state.canEditEqualizer, edit.isValid(against: state.equalizerValues,
+                                                  bandRange: state.bandRange, bassRange: state.clearBassRange) else {
+            state.error = "The headphone EQ changed before the draft could be sent. No EQ changes were applied."
+            return
+        }
+        var result = UInt32(MDR_RESULT_OK)
+        if edit.original.bands != edit.proposed.bands {
+            result = edit.proposed.bands.withUnsafeBufferPointer {
+                mdrHeadphonesSetEqualizerBands(h, $0.baseAddress, UInt32($0.count))
+            }
+        }
+        if result == MDR_RESULT_OK, edit.original.clearBass != edit.proposed.clearBass, let bass = edit.proposed.clearBass {
+            result = mdrHeadphonesSetEqualizerClearBass(h, Int32(bass))
+        }
+        if result != MDR_RESULT_OK {
+            // A multi-property edit may have staged its first field. Don't commit a partial draft.
+            if mdrHeadphonesIsDirty(h) != MDR_FALSE { fail("The headphones refused the EQ draft. Reconnect to continue.") }
+            else { state.error = "The headphones refused the EQ draft." }
+            return
+        }
+        // Commit in this tick, not after the ordinary slider batching period.
+        writeBatch.stage(at: clock.now, immediate: true)
     }
 
     private func text(_ key: UInt32, index: UInt32 = 0, on h: OpaquePointer) -> String {
@@ -329,10 +385,14 @@ final class HeadphoneService: @unchecked Sendable {
         var eq = MDREqualizer()
         if mdrHeadphonesGetEqualizer(h, MDR_PROPERTY_CURRENT, &eq) == MDR_RESULT_OK {
             state.eqAvailable = eq.available != MDR_FALSE && feature(MDR_FEATURE_EQUALIZER, h)
+            state.activePresetReported = state.eqAvailable && eq.preset != MDR_EQ_UNKNOWN
             state.preset = eq.preset
             state.dsee = eq.dsee_available != MDR_FALSE && feature(MDR_FEATURE_DSEE, h) ? eq.dsee_enabled != MDR_FALSE : nil
             state.dseeName = [1: "DSEE", 2: "DSEE HX", 3: "DSEE Extreme", 4: "DSEE Ultimate"][Int(eq.dsee_type)] ?? "DSEE"
-            var bands = [Int32](repeating: 0, count: Int(min(eq.band_count, 32)))
+            state.bands = []
+            state.frequencies = []
+            state.presets = []
+            var bands = [Int32](repeating: 0, count: state.activePresetReported ? Int(min(eq.band_count, 32)) : 0)
             var count = UInt32(bands.count)
             if count > 0 {
                 let result = bands.withUnsafeMutableBufferPointer { mdrHeadphonesGetEqualizerBands(h, MDR_PROPERTY_CURRENT, $0.baseAddress, &count) }
@@ -352,7 +412,7 @@ final class HeadphoneService: @unchecked Sendable {
                     state.presets = ids.prefix(Int(min(countPresets, UInt32(ids.count)))).enumerated().compactMap { index, id in
                         guard id != MDR_EQ_UNKNOWN else { return nil }
                         let name = text(MDR_TEXT_EQUALIZER_PRESET_NAME, index: UInt32(index), on: h)
-                        return EqualizerPreset(id: id, name: name.isEmpty ? "Preset \(id)" : name)
+                        return EqualizerPreset(id: id, name: name.isEmpty ? EqualizerPreset.displayName(id) : name)
                     }
                 }
             }
@@ -360,13 +420,18 @@ final class HeadphoneService: @unchecked Sendable {
         var playback = MDRPlayback()
         if mdrHeadphonesGetPlayback(h, MDR_PROPERTY_CURRENT, &playback) == MDR_RESULT_OK {
             state.volume = Int(playback.volume)
-            state.playing = playback.status == MDR_PLAYBACK_PLAYING
+            state.playbackState = PlaybackState(rawValue: playback.status) ?? .unknown
         }
         state.playbackAvailable = feature(MDR_FEATURE_PLAYBACK_CONTROL, h)
         state.volumeRange = feature(MDR_FEATURE_PLAYBACK_VOLUME, h) ? range(MDR_VALUE_PLAYBACK_VOLUME_MIN, MDR_VALUE_PLAYBACK_VOLUME_MAX, MDR_VALUE_PLAYBACK_VOLUME_STEP, h) : nil
-        state.track = text(MDR_TEXT_TRACK_TITLE, on: h)
-        state.artist = text(MDR_TEXT_TRACK_ARTIST, on: h)
-        state.album = text(MDR_TEXT_TRACK_ALBUM, on: h)
+        state.playbackMetadataAvailable = feature(MDR_FEATURE_PLAYBACK_METADATA, h)
+        if state.playbackMetadataAvailable && state.playbackState != .stopped {
+            state.track = text(MDR_TEXT_TRACK_TITLE, on: h)
+            state.artist = text(MDR_TEXT_TRACK_ARTIST, on: h)
+            state.album = text(MDR_TEXT_TRACK_ALBUM, on: h)
+        } else {
+            state.track = ""; state.artist = ""; state.album = ""
+        }
         var speak = MDRSpeakToChat()
         state.speakToChat = feature(MDR_FEATURE_SPEAK_TO_CHAT, h) && mdrHeadphonesGetSpeakToChat(h, MDR_PROPERTY_CURRENT, &speak) == MDR_RESULT_OK ? speak.enabled != MDR_FALSE : nil
         var power = MDRPower()
@@ -387,8 +452,20 @@ final class HeadphoneService: @unchecked Sendable {
                 return ListeningOption(id: id, name: name, available: status.available != MDR_FALSE)
             }
         }
+        let previousSource = state.connectedDevices.first(where: \.playing)?.id
         readPairedDevices(h)
+        let source = state.connectedDevices.first(where: \.playing)?.id
+        if previousSource != nil && previousSource != source {
+            state.track = ""; state.artist = ""; state.album = ""
+            if state.playbackMetadataAvailable { pendingSync |= xmPlaybackSyncFlags() }
+        }
+        state.canSelectPlaybackSource = feature(MDR_FEATURE_PAIRED_DEVICE_MANAGEMENT, h)
+        var switchEnabled: MDRBoolean = MDR_FALSE
+        state.automaticSourceSwitch = feature(MDR_FEATURE_SOURCE_SWITCH_CONTROL, h)
+            && mdrHeadphonesGetSourceSwitchControl(h, MDR_PROPERTY_CURRENT, &switchEnabled) == MDR_RESULT_OK
+            ? switchEnabled != MDR_FALSE : nil
         readGeneralSettings(h)
+        state.advancedSettings = DeviceSettingService.read(h)
     }
 
     private func readPairedDevices(_ h: OpaquePointer) {

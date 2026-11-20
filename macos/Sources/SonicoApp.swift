@@ -2,25 +2,34 @@ import AppKit
 import SwiftUI
 
 @main
-struct ProjectXMConnectApp: App {
+struct SonicoApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var model = HeadphoneModel(demo: CommandLine.arguments.contains("--demo"))
 
     var body: some Scene {
-        Window("Project XMConnect", id: "device") {
+        Window("Sonico", id: "device") {
             ContentView(model: model)
+                .modifier(FinishAppearance(finish: model.snapshot.finish))
                 .onAppear { delegate.model = model; model.start() }
         }
-        .defaultSize(width: 660, height: 880)
+        .defaultSize(width: 660, height: 805)
         .windowResizability(.contentMinSize)
         .commands {
             CommandGroup(after: .appInfo) {
-                Button("Licenses & Attribution") { showLicenses() }
+                Menu("Licenses & Source") {
+                    Button("Notices & Attribution") { openNotice("NOTICE") }
+                    Button("Sonico · GNU AGPL v3") { openNotice("LICENSE") }
+                    Button("SonyHeadphonesClient · MIT") { openNotice("MIT-SonyHeadphonesClient") }
+                    Button("Earlier SonyHeadphonesClient · MIT") { openNotice("MIT-Plutoberth") }
+                    Button("fmt License") { openNotice("FMT-LICENSE") }
+                    Divider()
+                    Link("Source Code", destination: URL(string: "https://github.com/jfeflores/Sonico")!)
+                }
             }
             CommandGroup(after: .toolbar) {
                 Button("My Device") { model.page = .device }.keyboardShortcut("1")
                 Button("Equalizer") { model.page = .equalizer }.keyboardShortcut("2")
-                Button("Device Settings") { model.page = .settings }.keyboardShortcut("3")
+                Button("Show Headphone Settings") { model.page = .settings }.keyboardShortcut("3")
                 Divider()
                 Button("Refresh Device State") { model.send(.sync) }
                     .keyboardShortcut("r").disabled(!model.snapshot.controllable)
@@ -28,9 +37,10 @@ struct ProjectXMConnectApp: App {
         }
         MenuBarExtra {
             MenuBarView(model: model)
+                .modifier(FinishAppearance(finish: model.snapshot.finish))
         } label: {
-            Label("XMConnect", systemImage: "headphones")
-                .accessibilityLabel("XMConnect, \(model.snapshot.status)")
+            Label("Sonico", systemImage: "headphones")
+                .accessibilityLabel("Sonico, \(model.snapshot.status)")
         }
         .menuBarExtraStyle(.window)
         Settings {
@@ -38,10 +48,8 @@ struct ProjectXMConnectApp: App {
         }
     }
 
-    private func showLicenses() {
-        for resource in ["LICENSE", "FMT-LICENSE"] {
-            if let url = Bundle.main.url(forResource: resource, withExtension: "txt") { NSWorkspace.shared.open(url) }
-        }
+    private func openNotice(_ resource: String) {
+        if let url = Bundle.main.url(forResource: resource, withExtension: "txt") { NSWorkspace.shared.open(url) }
     }
 }
 
@@ -54,6 +62,7 @@ struct ProjectXMConnectApp: App {
 struct ContentView: View {
     @Bindable var model: HeadphoneModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.sonico) private var colors
     @State private var showingDeviceAlert = false
 
     var body: some View {
@@ -61,15 +70,16 @@ struct ContentView: View {
             if model.snapshot.isDemo {
                 HStack {
                     Label("Demo mode", systemImage: "flask").fontWeight(.semibold)
-                    Text("No Bluetooth connection").foregroundStyle(XMTheme.primary)
+                    Text("No Bluetooth connection").foregroundStyle(colors.secondary)
                     Spacer()
                     Button("Exit Demo") { model.leaveDemo() }.buttonStyle(.borderless)
                 }
-                .font(.callout).padding(.horizontal, 22).padding(.vertical, 9)
-                .foregroundStyle(XMTheme.primary).background(XMTheme.surface)
+                .font(.callout).padding(.horizontal, XMTheme.margin).padding(.vertical, 8)
+                .foregroundStyle(colors.primary).background(colors.surfaceHigh)
             }
             if model.snapshot.controllable {
-                // Replace the page's scroll context, not the window or its toolbar.
+                pageNavigation
+                // Replace the page's scroll context, not its navigation.
                 ScrollView {
                     Group {
                         switch model.page {
@@ -93,7 +103,7 @@ struct ContentView: View {
                     Spacer(minLength: 0)
                     Button("Dismiss", systemImage: "xmark") { model.visibleError = nil }.labelStyle(.iconOnly)
                 }
-                .font(.callout).padding(16).foregroundStyle(XMTheme.error).background(XMTheme.surface)
+                .font(.callout).padding(16).foregroundStyle(colors.error).background(colors.surface)
             }
             if !model.snapshot.isDemo {
                 HStack {
@@ -101,31 +111,25 @@ struct ContentView: View {
                     Spacer()
                     if model.snapshot.applying {
                         ProgressView().controlSize(.mini)
-                        Text("Sending changes…").font(.caption).foregroundStyle(XMTheme.secondary)
+                        Text("Sending changes…").font(.caption).foregroundStyle(colors.secondary)
                     }
                 }
                 .frame(minHeight: 20)
-                .padding(.horizontal, 22).padding(.vertical, 8)
-                .background(XMTheme.surface)
+                .padding(.horizontal, XMTheme.margin).padding(.vertical, 6)
+                .background(colors.surface)
             }
         }
         .animation(reduceMotion ? nil : XMMotion.navigation, value: model.page)
-        .frame(minWidth: 560, minHeight: 640)
-        .background(XMTheme.background)
-        .foregroundStyle(XMTheme.text)
-        .tint(XMTheme.primary)
-        .preferredColorScheme(.dark)
+        .frame(minWidth: 530, minHeight: 610)
+        .background(colors.background)
+        .foregroundStyle(colors.text)
         .toolbar {
-            ToolbarItem(placement: .principal) {
-                Picker("View", selection: $model.page) {
-                    ForEach(AppPage.allCases) { Text($0.rawValue).tag($0) }
-                }.pickerStyle(.segmented).frame(width: 340)
-            }
             ToolbarItem {
                 Button("Connection", systemImage: "headphones") { model.showingConnection.toggle() }
                     .popover(isPresented: $model.showingConnection) {
                         ConnectionView(model: model).frame(width: 410, height: 450)
-                            .background(XMTheme.background).preferredColorScheme(.dark)
+                            .background(colors.background)
+                            .modifier(FinishAppearance(finish: model.snapshot.finish))
                     }
             }
         }
@@ -139,22 +143,41 @@ struct ContentView: View {
             Text(model.snapshot.deviceAlert ?? "This setting may interrupt the Bluetooth connection.")
         }
     }
+
+    private var pageNavigation: some View {
+        // A dedicated row won't be displaced by the title or toolbar overflow as the window narrows.
+        Picker("Headphone view", selection: $model.page) {
+            ForEach(AppPage.allCases) { page in
+                Text(page.rawValue).frame(maxWidth: .infinity).tag(page)
+            }
+        }
+        .labelsHidden()
+        .pickerStyle(.segmented)
+        .controlSize(.large)
+        .frame(maxWidth: 360)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, XMTheme.margin)
+        .padding(.vertical, 10)
+        .background(colors.surface)
+    }
 }
 
 struct ConnectionView: View {
     @Bindable var model: HeadphoneModel
+    @Environment(\.sonico) private var colors
     var body: some View {
         VStack(spacing: 22) {
             Spacer(minLength: 12)
-            Image(systemName: "headphones").font(.system(size: 60, weight: .light)).foregroundStyle(XMTheme.primary)
+            Image(systemName: "headphones").font(.system(size: 48, weight: .light)).foregroundStyle(colors.primary)
+                .accessibilityHidden(true)
             VStack(spacing: 8) {
                 Text(model.snapshot.controllable ? model.snapshot.name : "Connect headphones")
                     .font(.title.weight(.semibold)).accessibilityAddTraits(.isHeader)
-                if model.snapshot.phase.busy { Text(model.snapshot.name).foregroundStyle(XMTheme.secondary) }
+                if model.snapshot.phase.busy { Text(model.snapshot.name).foregroundStyle(colors.secondary) }
             }
             if !model.snapshot.controllable && !model.snapshot.phase.busy {
                 Text("Pair your WH-1000XM3, XM4, XM5, or XM6 in Bluetooth Settings, then find and connect them here.")
-                    .foregroundStyle(XMTheme.secondary).multilineTextAlignment(.center).frame(maxWidth: 350)
+                    .foregroundStyle(colors.secondary).multilineTextAlignment(.center).frame(maxWidth: 350)
             }
             if model.snapshot.phase.busy {
                 ProgressView(model.snapshot.phase.label).controlSize(.small)
@@ -174,7 +197,7 @@ struct ConnectionView: View {
                     .buttonStyle(TonalButtonStyle(prominent: model.snapshot.devices.isEmpty))
                 if model.snapshot.devices.isEmpty && model.snapshot.phase == .disconnected {
                     Text("Use the headphones’ original Bluetooth name so they appear in this list.")
-                        .font(.caption).foregroundStyle(XMTheme.secondary).multilineTextAlignment(.center).frame(maxWidth: 340)
+                        .font(.caption).foregroundStyle(colors.secondary).multilineTextAlignment(.center).frame(maxWidth: 340)
                 }
                 HStack(spacing: 16) {
                     Button("Bluetooth Settings") {
@@ -186,7 +209,7 @@ struct ConnectionView: View {
             Spacer(minLength: 12)
         }
         .padding(28).frame(maxWidth: .infinity, maxHeight: .infinity)
-        .foregroundStyle(XMTheme.text)
+        .foregroundStyle(colors.text)
     }
 
     private var pairedDeviceButtons: some View {
@@ -204,7 +227,7 @@ struct AppSettingsView: View {
     @Bindable var model: HeadphoneModel
     var body: some View {
         Form {
-            Section("Project XMConnect") {
+            Section("Sonico") {
                 Text("Independent headphone controller for macOS 15+.")
                 Text("Not affiliated with or endorsed by Sony.").foregroundStyle(.secondary)
             }

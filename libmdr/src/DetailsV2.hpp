@@ -355,6 +355,7 @@ namespace mdr
         Vector<EqPresetInfo> mEqPresets;
         UInt8 mEqCapabilityBands{};
         UInt8 mEqCapabilityStep{};
+        bool mEqPresetKnown{};
         Vector<v2::t1::EqBandInformation> mEqBandInfo;
         bool mEqRawLayoutKnown{};
         bool mEqRawClearBass{};

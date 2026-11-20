@@ -366,21 +366,25 @@ namespace mdr
         {
         case PLAYBACK_CONTROL_WITH_CALL_VOLUME_ADJUSTMENT:
         {
+            const auto updateNames = [&](const auto& names)
+            {
+                const auto text = [](const PlaybackName& name) -> String
+                { return name.playbackNameStatus == PlaybackNameStatus::SETTLED ? name.name.value : String{}; };
+                auto& state = self->mDetailsV2;
+                state.mPlayTrackTitle = text(names[0]);
+                state.mPlayTrackAlbum = text(names[1]);
+                state.mPlayTrackArtist = text(names[2]);
+                state.mPlayTrackGenre = text(names[3]);
+            };
             if (command == Command::PLAY_NTFY_PARAM)
             {
                 Deserialize(NotifyPlayParamPlaybackControllerName, res, cmd);
-                self->mDetailsV2.mPlayTrackTitle = res.playbackNames.value[0].name.value;
-                self->mDetailsV2.mPlayTrackAlbum = res.playbackNames.value[1].name.value;
-                self->mDetailsV2.mPlayTrackArtist = res.playbackNames.value[2].name.value;
-                self->mDetailsV2.mPlayTrackGenre = res.playbackNames.value[3].name.value;
+                updateNames(res.playbackNames.value);
             }
             else
             {
                 Deserialize(RetPlayParamPlaybackControllerName, res, cmd);
-                self->mDetailsV2.mPlayTrackTitle = res.playbackNames.value[0].name.value;
-                self->mDetailsV2.mPlayTrackAlbum = res.playbackNames.value[1].name.value;
-                self->mDetailsV2.mPlayTrackArtist = res.playbackNames.value[2].name.value;
-                self->mDetailsV2.mPlayTrackGenre = res.playbackNames.value[3].name.value;
+                updateNames(res.playbackNames.value);
             }
             return self->Sync(MDR_HEADPHONES_SYNC_PLAYBACK, MDR_EVENT_PLAYBACK_CHANGED);
         }
@@ -1126,7 +1130,10 @@ namespace mdr
     {
         auto& state = self->mDetailsV2;
         if (steps.empty())
+        {
+            state.mEqConfig.overwrite(Vector<int>{});
             return;
+        }
         const int offset = state.EqStepOffset(steps.size());
         const bool clearBass = state.EqHasClearBass(steps.size());
         state.mEqRawLayoutKnown = true;
@@ -1156,6 +1163,7 @@ namespace mdr
             self->mDetailsV2.mEqPresetId.overwrite(res.parameter.presetId);
             ApplyEqBandSteps(self, res.parameter.bandSteps.value);
         }
+        self->mDetailsV2.mEqPresetKnown = true;
         return MDR_EVENT_EQUALIZER_CHANGED;
     }
 
